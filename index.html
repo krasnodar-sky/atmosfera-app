@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Атмосфера — фестиваль</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="assets/app.css?v=2">
+</head>
+<body>
+  <div class="stars" aria-hidden="true"></div>
+  <div class="stars stars-2" aria-hidden="true"></div>
+
+  <div class="app" id="app">
+
+    <header class="header">
+      <img class="header-logo" src="assets/logo.jpg" alt="Атмосфера">
+      <div class="header-text">
+        <h1 class="header-title">Атмосфера</h1>
+        <p class="header-sub" id="header-sub">фестиваль</p>
+      </div>
+    </header>
+
+    <main class="screens">
+
+      <!-- ПРОГРАММА -->
+      <section class="screen active" id="screen-program">
+        <div class="screen-head">
+          <h2>Программа</h2>
+          <button class="chip-btn" id="fav-filter" type="button">🤍 Избранное</button>
+        </div>
+        <p class="hint">программа предварительная — может чуть сдвинуться ✨</p>
+        <div id="program-list"></div>
+        <div class="empty-state hidden" id="program-empty">
+          <div class="empty-emoji">🌄</div>
+          <p>Тихо, как в горах…<br>Отметь звёздочкой то, что не хочешь пропустить ❤️</p>
+        </div>
+      </section>
+
+      <!-- ЛАЙНАП -->
+      <section class="screen" id="screen-lineup">
+        <div class="screen-head">
+          <h2>Лайнап</h2>
+        </div>
+        <div id="lineup-list"></div>
+      </section>
+
+      <!-- КАРТА -->
+      <section class="screen" id="screen-map">
+        <div class="screen-head">
+          <h2>Карта поляны</h2>
+        </div>
+        <p class="hint">тап по карте — поставить или снять пин «моя палатка» ⛺</p>
+        <div class="map-wrap" id="map-wrap">
+          <svg id="map-svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="map-controls">
+            <button type="button" id="zoom-in" aria-label="Приблизить">+</button>
+            <button type="button" id="zoom-out" aria-label="Отдалить">−</button>
+            <button type="button" id="find-tent" aria-label="Найти палатку">⛺</button>
+          </div>
+        </div>
+        <p class="hint" id="tent-hint">пин палатки сохранится на этом устройстве</p>
+      </section>
+
+      <!-- ГИД -->
+      <section class="screen" id="screen-guide">
+        <div class="screen-head">
+          <h2>Гид</h2>
+        </div>
+
+        <div class="accordion" id="acc-pack">
+          <button class="acc-head" type="button">
+            <span>🎒 Что взять</span>
+            <span class="acc-progress-label" id="pack-progress-label">0%</span>
+          </button>
+          <div class="acc-body">
+            <div class="progress"><div class="progress-fill" id="pack-progress"></div></div>
+            <div id="pack-list"></div>
+          </div>
+        </div>
+
+        <div class="accordion" id="acc-food">
+          <button class="acc-head" type="button">
+            <span>🍲 Еда</span>
+          </button>
+          <div class="acc-body">
+            <div id="food-list"></div>
+          </div>
+        </div>
+
+        <div class="accordion" id="acc-around">
+          <button class="acc-head" type="button">
+            <span>⛰️ Окрестности</span>
+          </button>
+          <div class="acc-body">
+            <div id="around-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ИНФО -->
+      <section class="screen" id="screen-info">
+        <div class="screen-head">
+          <h2>Инфо</h2>
+        </div>
+
+        <div class="card" id="location-card">
+          <h3>📍 Локация</h3>
+          <div id="location-body"></div>
+        </div>
+
+        <div class="card">
+          <h3>🚗 Как добраться</h3>
+          <div id="howto-body"></div>
+        </div>
+
+        <div class="card">
+          <h3>❤️ Правила</h3>
+          <div id="rules-body"></div>
+        </div>
+
+        <div class="card card-sos">
+          <h3>🆘 SOS</h3>
+          <div id="sos-body"></div>
+        </div>
+
+        <button class="btn-primary" id="btn-organizer" type="button">Написать организатору 💬</button>
+
+        <div class="card" id="weather-card" hidden>
+          <h3>🌦 Погода в Мезмае</h3>
+          <div id="weather-body"></div>
+        </div>
+      </section>
+
+    </main>
+
+    <nav class="tabbar">
+      <button class="tab active" data-tab="program" type="button"><span class="tab-ico">🗓</span><span>Программа</span></button>
+      <button class="tab" data-tab="lineup" type="button"><span class="tab-ico">🎤</span><span>Лайнап</span></button>
+      <button class="tab" data-tab="map" type="button"><span class="tab-ico">🗺</span><span>Карта</span></button>
+      <button class="tab" data-tab="guide" type="button"><span class="tab-ico">🎒</span><span>Гид</span></button>
+      <button class="tab" data-tab="info" type="button"><span class="tab-ico">ℹ️</span><span>Инфо</span></button>
+    </nav>
+  </div>
+
+  <script src="assets/app.js?v=2"></script>
+</body>
+</html>
