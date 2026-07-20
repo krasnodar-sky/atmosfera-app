@@ -6,7 +6,8 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Атмосфера — фестиваль</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="assets/app.css?v=2">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="assets/app.css?v=3">
 </head>
 <body>
   <div class="stars" aria-hidden="true"></div>
@@ -15,11 +16,17 @@
   <div class="app" id="app">
 
     <header class="header">
-      <img class="header-logo" src="assets/logo.jpg" alt="Атмосфера">
-      <div class="header-text">
-        <h1 class="header-title">Атмосфера</h1>
-        <p class="header-sub" id="header-sub">фестиваль</p>
+      <div class="header-top">
+        <img class="header-logo" src="assets/logo.jpg" alt="Атмосфера">
+        <div class="header-text">
+          <h1 class="header-title">Атмосфера</h1>
+          <p class="header-sub" id="header-sub">фестиваль</p>
+        </div>
       </div>
+      <div class="hero-afisha">
+        <img src="assets/afisha.webp" alt="Афиша лайнапа фестиваля">
+      </div>
+      <div class="ornament" aria-hidden="true"></div>
     </header>
 
     <main class="screens">
@@ -28,13 +35,15 @@
       <section class="screen active" id="screen-program">
         <div class="screen-head">
           <h2>Программа</h2>
-          <button class="chip-btn" id="fav-filter" type="button">🤍 Избранное</button>
+          <button class="filter-btn" id="fav-filter" type="button">
+            <i class="ph ph-bookmark-simple" aria-hidden="true"></i><span>Избранное</span>
+          </button>
         </div>
-        <p class="hint">программа предварительная — может чуть сдвинуться ✨</p>
+        <p class="hint">расписание предварительное, возможны сдвиги</p>
         <div id="program-list"></div>
         <div class="empty-state hidden" id="program-empty">
-          <div class="empty-emoji">🌄</div>
-          <p>Тихо, как в горах…<br>Отметь звёздочкой то, что не хочешь пропустить ❤️</p>
+          <div class="ornament ornament-wide" aria-hidden="true"></div>
+          <p>Тихо, как в горах.<br>Отметь закладкой то, что не хочешь пропустить.</p>
         </div>
       </section>
 
@@ -51,13 +60,13 @@
         <div class="screen-head">
           <h2>Карта поляны</h2>
         </div>
-        <p class="hint">тап по карте — поставить или снять пин «моя палатка» ⛺</p>
+        <p class="hint">тап по карте ставит пин «моя палатка»</p>
         <div class="map-wrap" id="map-wrap">
           <svg id="map-svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet"></svg>
           <div class="map-controls">
-            <button type="button" id="zoom-in" aria-label="Приблизить">+</button>
-            <button type="button" id="zoom-out" aria-label="Отдалить">−</button>
-            <button type="button" id="find-tent" aria-label="Найти палатку">⛺</button>
+            <button type="button" id="zoom-in" aria-label="Приблизить"><i class="ph ph-plus" aria-hidden="true"></i></button>
+            <button type="button" id="zoom-out" aria-label="Отдалить"><i class="ph ph-minus" aria-hidden="true"></i></button>
+            <button type="button" id="find-tent" aria-label="Найти палатку"><i class="ph ph-tent" aria-hidden="true"></i></button>
           </div>
         </div>
         <p class="hint" id="tent-hint">пин палатки сохранится на этом устройстве</p>
@@ -71,30 +80,41 @@
 
         <div class="accordion" id="acc-pack">
           <button class="acc-head" type="button">
-            <span>🎒 Что взять</span>
-            <span class="acc-progress-label" id="pack-progress-label">0%</span>
+            <i class="ph ph-backpack" aria-hidden="true"></i>
+            <span class="acc-title">Что взять</span>
+            <span class="acc-progress-label" id="pack-progress-label"></span>
+            <i class="ph ph-caret-down acc-caret" aria-hidden="true"></i>
           </button>
           <div class="acc-body">
-            <div class="progress"><div class="progress-fill" id="pack-progress"></div></div>
-            <div id="pack-list"></div>
+            <div class="acc-inner">
+              <div id="pack-list"></div>
+            </div>
           </div>
         </div>
 
         <div class="accordion" id="acc-food">
           <button class="acc-head" type="button">
-            <span>🍲 Еда</span>
+            <i class="ph ph-bowl-food" aria-hidden="true"></i>
+            <span class="acc-title">Еда</span>
+            <i class="ph ph-caret-down acc-caret" aria-hidden="true"></i>
           </button>
           <div class="acc-body">
-            <div id="food-list"></div>
+            <div class="acc-inner">
+              <div id="food-list"></div>
+            </div>
           </div>
         </div>
 
         <div class="accordion" id="acc-around">
           <button class="acc-head" type="button">
-            <span>⛰️ Окрестности</span>
+            <i class="ph ph-mountains" aria-hidden="true"></i>
+            <span class="acc-title">Окрестности</span>
+            <i class="ph ph-caret-down acc-caret" aria-hidden="true"></i>
           </button>
           <div class="acc-body">
-            <div id="around-list"></div>
+            <div class="acc-inner">
+              <div id="around-list"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -105,30 +125,37 @@
           <h2>Инфо</h2>
         </div>
 
-        <div class="card" id="location-card">
-          <h3>📍 Локация</h3>
+        <div class="info-section" id="location-card">
+          <h3>Локация</h3>
           <div id="location-body"></div>
         </div>
 
-        <div class="card">
-          <h3>🚗 Как добраться</h3>
+        <div class="ornament" aria-hidden="true"></div>
+
+        <div class="info-section">
+          <h3>Как добраться</h3>
           <div id="howto-body"></div>
         </div>
 
-        <div class="card">
-          <h3>❤️ Правила</h3>
+        <div class="ornament" aria-hidden="true"></div>
+
+        <div class="info-section">
+          <h3>Правила</h3>
           <div id="rules-body"></div>
         </div>
 
-        <div class="card card-sos">
-          <h3>🆘 SOS</h3>
+        <div class="ornament" aria-hidden="true"></div>
+
+        <div class="info-section info-sos">
+          <h3>SOS</h3>
           <div id="sos-body"></div>
         </div>
 
-        <button class="btn-primary" id="btn-organizer" type="button">Написать организатору 💬</button>
+        <button class="btn-primary" id="btn-organizer" type="button">Написать организатору</button>
 
-        <div class="card" id="weather-card" hidden>
-          <h3>🌦 Погода в Мезмае</h3>
+        <div class="info-section" id="weather-card" hidden>
+          <div class="ornament" aria-hidden="true"></div>
+          <h3>Погода в Мезмае</h3>
           <div id="weather-body"></div>
         </div>
       </section>
@@ -136,14 +163,14 @@
     </main>
 
     <nav class="tabbar">
-      <button class="tab active" data-tab="program" type="button"><span class="tab-ico">🗓</span><span>Программа</span></button>
-      <button class="tab" data-tab="lineup" type="button"><span class="tab-ico">🎤</span><span>Лайнап</span></button>
-      <button class="tab" data-tab="map" type="button"><span class="tab-ico">🗺</span><span>Карта</span></button>
-      <button class="tab" data-tab="guide" type="button"><span class="tab-ico">🎒</span><span>Гид</span></button>
-      <button class="tab" data-tab="info" type="button"><span class="tab-ico">ℹ️</span><span>Инфо</span></button>
+      <button class="tab active" data-tab="program" type="button"><i class="ph ph-calendar-star" aria-hidden="true"></i><span>Программа</span></button>
+      <button class="tab" data-tab="lineup" type="button"><i class="ph ph-microphone-stage" aria-hidden="true"></i><span>Лайнап</span></button>
+      <button class="tab" data-tab="map" type="button"><i class="ph ph-compass" aria-hidden="true"></i><span>Карта</span></button>
+      <button class="tab" data-tab="guide" type="button"><i class="ph ph-backpack" aria-hidden="true"></i><span>Гид</span></button>
+      <button class="tab" data-tab="info" type="button"><i class="ph ph-info" aria-hidden="true"></i><span>Инфо</span></button>
     </nav>
   </div>
 
-  <script src="assets/app.js?v=2"></script>
+  <script src="assets/app.js?v=3"></script>
 </body>
 </html>

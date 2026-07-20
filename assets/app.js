@@ -1,29 +1,9 @@
 /* ============================================================
-   Атмосфера — TG Mini App прототип
-   Данные: data/content.json (пишет отдельный агент).
-   Фактическая схема content.json (сверено с файлом 20.07):
-
-   {
-     "meta": { "festName", "dates", "place", "tagline",
-               "locationRevealAt": "2026-08-15T12:00:00+03:00" },
-     "program": [ { "day", "note",
-                    "blocks": [ { "time", "title", "place", "desc" } ] } ],
-     "lineup":  [ { "name", "kind", "headliner": bool, "bio",
-                    "links": [ "https://…" ] } ],
-     "mapZones":[ { "id", "name", "desc", "icon" } ],   // без x/y —
-                                                        // раскладка в ZONE_POS
-     "checklist":[ { "category", "items": [ "…" ] } ],
-     "food":    { "intro", "options": [ { "title", "desc" } ], "teaNote" },
-     "surroundings":[ { "name", "distance", "desc", "tip" } ],
-     "rules":   { "intro", "items": [ "…" ], "quietHours",
-                  "sos": [ { "title", "desc" } ] },
-     "info":    { "orgContact": "@artemiy_kar", "channelLink",
-                  "howToGet", "roadNote" }
-   }
-
-   Рендеры также понимают упрощённые формы (плоский checklist,
-   food-массив, sos-строка, зоны с x/y) — на них завязан FALLBACK.
-   Каскад данных: fetch → localStorage-кэш → встроенный FALLBACK.
+   Атмосфера — TG Mini App
+   Данные: data/content.json (НЕ меняем). Каскад: fetch →
+   localStorage-кэш → встроенный FALLBACK.
+   Редизайн v3 «этно-ритуал»: Phosphor-иконки вместо эмодзи,
+   Unbounded/Onest, один янтарный акцент.
    ============================================================ */
 
 (function () {
@@ -66,6 +46,13 @@
     return node;
   }
 
+  function icon(cls) {
+    var i = document.createElement('i');
+    i.className = 'ph ' + cls;
+    i.setAttribute('aria-hidden', 'true');
+    return i;
+  }
+
   function store(key, val) {
     try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* noop */ }
   }
@@ -77,7 +64,7 @@
     } catch (e) { return fallback; }
   }
 
-  /* ---------- встроенный фолбэк-контент ---------- */
+  /* ---------- встроенный фолбэк-контент (данные, как в content.json) ---------- */
   var FALLBACK = {
     meta: {
       dates: '20–23 августа 2026',
@@ -219,7 +206,6 @@
 
   function updateFavBtn() {
     favFilterBtn.classList.toggle('on', favFilterOn);
-    favFilterBtn.textContent = favFilterOn ? '❤️ Избранное' : '🤍 Избранное';
   }
 
   function renderProgram(data) {
@@ -230,11 +216,18 @@
     days.forEach(function (day, di) {
       var blocks = (day && day.blocks) || [];
       var dayWrap = el('div', 'day-block');
-      var titleText = day.day ? day.day : ('День ' + (di + 1) + (day.date ? ' · ' + day.date : ''));
-      var dt = el('div', 'day-title');
-      dt.appendChild(document.createTextNode(titleText));
-      var badge = el('span', 'badge-pre', 'предварительно');
-      dt.appendChild(badge);
+
+      // заголовок дня: крупная дата + название дня микроподписью
+      var rawDay = day.day || ('День ' + (di + 1));
+      var parts = String(rawDay).split('·');
+      var dayName = parts.length > 1 ? parts[0].trim() : '';
+      var dateText = parts.length > 1 ? parts.slice(1).join('·').trim()
+                                      : (day.date || rawDay);
+
+      var head = el('div', 'day-head');
+      head.appendChild(el('span', 'day-date', dateText));
+      if (dayName) head.appendChild(el('span', 'day-name', dayName));
+      head.appendChild(el('span', 'badge-pre', 'предварительно'));
 
       var anyInDay = false;
       blocks.forEach(function (b, bi) {
@@ -246,15 +239,21 @@
         shown++;
 
         var row = el('div', 'event');
-        row.appendChild(el('div', 'event-time', b.time || '—'));
+        row.appendChild(el('div', 'event-time', b.time || ''));
         var main = el('div', 'event-main');
         main.appendChild(el('div', 'event-title', b.title || ''));
         if (b.desc) main.appendChild(el('div', 'event-place', b.desc));
-        if (b.place) main.appendChild(el('div', 'event-place', '📍 ' + b.place));
+        if (b.place) {
+          var place = el('div', 'event-place');
+          place.appendChild(icon('ph-map-pin'));
+          place.appendChild(document.createTextNode(b.place));
+          main.appendChild(place);
+        }
         row.appendChild(main);
 
-        var star = el('button', 'star-btn' + (isFav ? ' on' : ''), '⭐');
+        var star = el('button', 'fav-btn' + (isFav ? ' on' : ''));
         star.type = 'button';
+        star.appendChild(icon('ph-bookmark-simple'));
         star.setAttribute('aria-label', 'В избранное');
         star.addEventListener('click', function () {
           var i = favs.indexOf(key);
@@ -265,7 +264,7 @@
         row.appendChild(star);
 
         if (!dayWrap._titled) {
-          dayWrap.appendChild(dt);
+          dayWrap.appendChild(head);
           if (day.note) dayWrap.appendChild(el('div', 'day-note', day.note));
           dayWrap._titled = true;
         }
@@ -299,49 +298,87 @@
     } catch (e) { return 'ссылка'; }
   }
 
+  /* группировка лайнапа: порядок и заголовки разделов */
+  var GROUP_ORDER = ['музыка', 'практика', 'чайная', 'детское'];
+  var GROUP_TITLES = {
+    'музыка': 'Музыка',
+    'практика': 'Практики',
+    'чайная': 'Чайная',
+    'детское': 'Детское'
+  };
+
   function renderLineup(data) {
     var wrap = document.getElementById('lineup-list');
     wrap.textContent = '';
     var items = (data && data.lineup) || [];
 
+    // раскладываем по группам, сохраняя исходный порядок внутри
+    var groups = [];
+    var byKind = {};
     items.forEach(function (a) {
-      var card = el('div', 'artist');
+      var k = (a.kind || '').toLowerCase();
+      if (!byKind[k]) { byKind[k] = []; groups.push(k); }
+      byKind[k].push(a);
+    });
+    groups.sort(function (x, y) {
+      var ix = GROUP_ORDER.indexOf(x), iy = GROUP_ORDER.indexOf(y);
+      if (ix === -1) ix = GROUP_ORDER.length;
+      if (iy === -1) iy = GROUP_ORDER.length;
+      return ix - iy;
+    });
 
-      var top = el('div', 'artist-top');
-      top.appendChild(el('div', 'artist-name', a.name || '—'));
-      if (a.headliner) top.appendChild(el('span', 'headliner-star', '★'));
-      if (a.kind) top.appendChild(el('span', 'chip', a.kind));
-      card.appendChild(top);
+    groups.forEach(function (k) {
+      var gh = el('div', 'group-head');
+      gh.appendChild(el('span', null, GROUP_TITLES[k] || (k.charAt(0).toUpperCase() + k.slice(1))));
+      wrap.appendChild(gh);
 
-      if (a.bio) {
-        var toggle = el('button', 'artist-bio-toggle', 'о выступлении ▾');
-        toggle.type = 'button';
-        var bio = el('div', 'artist-bio', a.bio);
-        toggle.addEventListener('click', function () {
-          var open = bio.classList.toggle('open');
-          toggle.textContent = open ? 'свернуть ▴' : 'о выступлении ▾';
-        });
-        card.appendChild(toggle);
-        card.appendChild(bio);
-      }
+      byKind[k].forEach(function (a) {
+        var card = el('div', 'artist');
 
-      var links = Array.isArray(a.links) ? a.links : [];
-      if (links.length) {
-        var linksWrap = el('div', 'artist-links');
-        links.forEach(function (l) {
-          // ссылка может быть строкой URL (реальная схема) или объектом {label,url} (фолбэк)
-          var url = (typeof l === 'string') ? l : (l && l.url);
-          if (!url) return;
-          var label = (typeof l === 'string') ? linkLabel(l) : (l.label || linkLabel(url));
-          var b = el('button', 'link-btn', label + ' ↗');
-          b.type = 'button';
-          b.addEventListener('click', function () { openLink(url); });
-          linksWrap.appendChild(b);
-        });
-        card.appendChild(linksWrap);
-      }
+        var top = el('div', 'artist-top');
+        if (a.headliner) top.appendChild(el('span', 'headliner-star', '◆'));
+        top.appendChild(el('div', 'artist-name', a.name || ''));
+        card.appendChild(top);
+        if (a.kind) card.appendChild(el('span', 'artist-kind', a.kind));
 
-      wrap.appendChild(card);
+        if (a.bio) {
+          var toggle = el('button', 'artist-bio-toggle');
+          toggle.type = 'button';
+          toggle.appendChild(document.createTextNode('О выступлении'));
+          var caret = icon('ph-caret-down');
+          toggle.appendChild(caret);
+          var bioWrap = el('div', 'bio-wrap');
+          var bioInner = el('div', 'bio-inner');
+          bioInner.appendChild(el('div', 'artist-bio', a.bio));
+          bioWrap.appendChild(bioInner);
+          toggle.addEventListener('click', function () {
+            var open = bioWrap.classList.toggle('open');
+            toggle.classList.toggle('open', open);
+          });
+          card.appendChild(toggle);
+          card.appendChild(bioWrap);
+        }
+
+        var links = Array.isArray(a.links) ? a.links : [];
+        if (links.length) {
+          var linksWrap = el('div', 'artist-links');
+          links.forEach(function (l) {
+            // ссылка может быть строкой URL (реальная схема) или объектом {label,url} (фолбэк)
+            var url = (typeof l === 'string') ? l : (l && l.url);
+            if (!url) return;
+            var label = (typeof l === 'string') ? linkLabel(l) : (l.label || linkLabel(url));
+            var b = el('button', 'link-btn');
+            b.type = 'button';
+            b.appendChild(document.createTextNode(label));
+            b.appendChild(icon('ph-arrow-up-right'));
+            b.addEventListener('click', function () { openLink(url); });
+            linksWrap.appendChild(b);
+          });
+          card.appendChild(linksWrap);
+        }
+
+        wrap.appendChild(card);
+      });
     });
   }
 
@@ -360,11 +397,11 @@
     for (var k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   }
-  function svgText(x, y, str, size, fill, anchor) {
+  function svgText(x, y, str, size, fill, anchor, family) {
     var t = svgEl('text', {
-      x: x, y: y, 'font-size': size || 13, fill: fill || '#8fa3d9',
+      x: x, y: y, 'font-size': size || 13, fill: fill || '#a9a495',
       'text-anchor': anchor || 'middle',
-      'font-family': '-apple-system, "Segoe UI", sans-serif'
+      'font-family': family || 'Onest, sans-serif'
     });
     t.textContent = str;
     return t;
@@ -411,6 +448,34 @@
     'entrance':     { x: 110, y: 430 }
   };
 
+  /* глифы Phosphor (PUA-кодпоинты) для зон: по id, затем по эмодзи из данных */
+  var PH_GLYPH_BY_ID = {
+    'main-stage':   '\ue340', // music-notes
+    'indoor-stage': '\ue58e', // moon-stars
+    'tea':          '\ue8e6', // tea-bag
+    'cafe':         '\ueaa4', // bowl-food
+    'practice-1':   '\ue6cc', // flower-lotus
+    'practice-2':   '\ue242', // fire
+    'practice-3':   '\ue168', // chat-circle
+    'kids':         '\ue76c', // balloon
+    'camping':      '\ue8ba', // tent
+    'wash':         '\ue776', // shower
+    'parking':      '\ue112', // car
+    'entrance':     '\ue89c'  // signpost
+  };
+  var PH_GLYPH_BY_EMOJI = {
+    '🎵': '\ue340', '🌙': '\ue58e', '🧘': '\ue6cc', '🔥': '\ue242',
+    '💬': '\ue168', '🍵': '\ue8e6', '🧸': '\ue76c', '🍲': '\ueaa4',
+    '⛺': '\ue8ba', '🚿': '\ue776', '🚗': '\ue112', '❤️': '\ue2a8',
+    '⛰️': '\ue7ae', '🌿': '\ue2da'
+  };
+
+  function zoneGlyph(z) {
+    if (z.id && PH_GLYPH_BY_ID[z.id]) return PH_GLYPH_BY_ID[z.id];
+    if (z.icon && PH_GLYPH_BY_EMOJI[z.icon]) return PH_GLYPH_BY_EMOJI[z.icon];
+    return '\ue316'; // map-pin
+  }
+
   function zonePos(z, i, total) {
     if (typeof z.x === 'number' && typeof z.y === 'number') return { x: z.x, y: z.y };
     if (z.id && ZONE_POS[z.id]) return ZONE_POS[z.id];
@@ -423,49 +488,52 @@
     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
     // фон поляны
-    svg.appendChild(svgEl('rect', { x: 0, y: 0, width: 800, height: 500, fill: '#0b1230', rx: 16 }));
+    svg.appendChild(svgEl('rect', { x: 0, y: 0, width: 800, height: 500, fill: '#10142a', rx: 16 }));
     // лес по краям — приглушённые пятна
     var woods = [
       [60, 60, 90], [740, 70, 80], [70, 470, 85], [745, 460, 90],
       [400, 30, 70], [30, 260, 65], [770, 270, 70]
     ];
     woods.forEach(function (w) {
-      svg.appendChild(svgEl('circle', { cx: w[0], cy: w[1], r: w[2], fill: 'rgba(90,140,110,.10)' }));
+      svg.appendChild(svgEl('circle', { cx: w[0], cy: w[1], r: w[2], fill: 'rgba(239,233,220,.045)' }));
     });
     // тропинки: вход → практики → сцена; вход → кемпинг; сцена → чайная/кафе
-    svg.appendChild(svgEl('path', {
-      d: 'M110 430 C 140 380, 150 350, 150 330 S 170 240, 170 180 S 300 130, 400 110',
-      fill: 'none', stroke: 'rgba(174,203,255,.28)', 'stroke-width': 3,
-      'stroke-dasharray': '8 7', 'stroke-linecap': 'round'
-    }));
-    svg.appendChild(svgEl('path', {
-      d: 'M110 430 C 160 440, 200 445, 240 450 M150 330 C 220 320, 270 315, 320 310 S 420 280, 470 240 S 560 270, 630 280',
-      fill: 'none', stroke: 'rgba(174,203,255,.28)', 'stroke-width': 3,
-      'stroke-dasharray': '8 7', 'stroke-linecap': 'round'
-    }));
-    svg.appendChild(svgEl('path', {
-      d: 'M400 110 C 470 120, 540 135, 580 160 M320 310 C 400 380, 520 400, 620 410 M460 430 C 500 425, 560 418, 620 410',
-      fill: 'none', stroke: 'rgba(174,203,255,.22)', 'stroke-width': 3,
-      'stroke-dasharray': '8 7', 'stroke-linecap': 'round'
-    }));
+    var trail = { fill: 'none', stroke: 'rgba(111,109,102,.8)', 'stroke-width': 2,
+                  'stroke-dasharray': '2 7', 'stroke-linecap': 'round' };
+    svg.appendChild(svgEl('path', Object.assign({
+      d: 'M110 430 C 140 380, 150 350, 150 330 S 170 240, 170 180 S 300 130, 400 110' }, trail)));
+    svg.appendChild(svgEl('path', Object.assign({
+      d: 'M110 430 C 160 440, 200 445, 240 450 M150 330 C 220 320, 270 315, 320 310 S 420 280, 470 240 S 560 270, 630 280' }, trail)));
+    svg.appendChild(svgEl('path', Object.assign({
+      d: 'M400 110 C 470 120, 540 135, 580 160 M320 310 C 400 380, 520 400, 620 410 M460 430 C 500 425, 560 418, 620 410' }, trail)));
 
     // зоны из данных
     var zones = (data && data.mapZones) || [];
     zones.forEach(function (z, i) {
       var p = zonePos(z, i, zones.length);
       var g = svgEl('g', {});
-      g.appendChild(svgEl('circle', {
-        cx: p.x, cy: p.y, r: 26,
-        fill: 'rgba(174,203,255,.10)', stroke: 'rgba(174,203,255,.35)', 'stroke-width': 1.5
-      }));
-      g.appendChild(svgText(p.x, p.y + 7, z.icon || '•', 20));
-      g.appendChild(svgText(p.x, p.y + 46, z.name || '', 12));
+      // мягкое свечение-основа + янтарная точка (видны даже без иконочного шрифта)
+      g.appendChild(svgEl('circle', { cx: p.x, cy: p.y, r: 21, fill: 'rgba(223,160,80,.10)' }));
+      g.appendChild(svgEl('circle', { cx: p.x, cy: p.y, r: 3, fill: '#dfa050' }));
+      // глиф Phosphor поверх точки
+      g.appendChild(svgText(p.x, p.y + 6.5, zoneGlyph(z), 19, '#efe9dc', 'middle', 'Phosphor'));
+      // подпись
+      g.appendChild(svgText(p.x, p.y + 42, z.name || '', 12.5, '#a9a495'));
       svg.appendChild(g);
     });
 
-    // пин палатки
-    tentNode = svgText(0, 0, '⛺', 30);
-    tentNode.setAttribute('style', 'pointer-events:none; filter: drop-shadow(0 0 6px rgba(255,107,129,.6));');
+    // пин палатки — янтарная палатка (рисованный SVG-глиф, не зависит от шрифтов)
+    tentNode = svgEl('g', { style: 'pointer-events:none; filter: drop-shadow(0 0 5px rgba(223,160,80,.55));' });
+    tentNode.appendChild(svgEl('path', {
+      d: 'M-12 9 L0 -12 L12 9 Z',
+      fill: 'rgba(223,160,80,.28)', stroke: '#dfa050', 'stroke-width': 2,
+      'stroke-linejoin': 'round'
+    }));
+    tentNode.appendChild(svgEl('path', {
+      d: 'M-4 9 L0 1 L4 9',
+      fill: 'none', stroke: '#dfa050', 'stroke-width': 1.8,
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+    }));
     svg.appendChild(tentNode);
     updateTentPin();
   }
@@ -474,10 +542,9 @@
     if (!tentNode) return;
     var hint = document.getElementById('tent-hint');
     if (tent && typeof tent.x === 'number') {
-      tentNode.setAttribute('x', tent.x);
-      tentNode.setAttribute('y', tent.y + 10);
+      tentNode.setAttribute('transform', 'translate(' + tent.x + ',' + tent.y + ')');
       tentNode.style.display = '';
-      hint.textContent = 'палатка отмечена ⛺ тап по карте — переставить, кнопка ⛺ — найти';
+      hint.textContent = 'палатка отмечена. Тап по карте переставит пин, кнопка с палаткой покажет его крупно';
     } else {
       tentNode.style.display = 'none';
       hint.textContent = 'пин палатки сохранится на этом устройстве';
@@ -562,7 +629,7 @@
   document.getElementById('zoom-out').addEventListener('click', function () { zoom(1.33); });
   document.getElementById('find-tent').addEventListener('click', function () {
     if (!tent || typeof tent.x !== 'number') {
-      document.getElementById('tent-hint').textContent = 'сначала поставь пин тапом по карте 🤍';
+      document.getElementById('tent-hint').textContent = 'сначала поставь пин тапом по карте';
       return;
     }
     vb.w = 260; vb.h = 260 * (VB0.h / VB0.w);
@@ -633,24 +700,24 @@
     foodWrap.textContent = '';
     var food = data && data.food;
     if (food && !Array.isArray(food) && typeof food === 'object') {
-      if (food.intro) foodWrap.appendChild(el('p', 'food-intro', food.intro));
+      if (food.intro) foodWrap.appendChild(el('p', 'g-intro', food.intro));
       (food.options || []).forEach(function (f) {
-        var card = el('div', 'mini-card');
-        card.appendChild(el('h4', null, f.title || f.name || ''));
-        if (f.desc) card.appendChild(el('p', null, f.desc));
-        foodWrap.appendChild(card);
+        var item = el('div', 'g-item');
+        item.appendChild(el('h4', null, f.title || f.name || ''));
+        if (f.desc) item.appendChild(el('p', null, f.desc));
+        foodWrap.appendChild(item);
       });
       if (food.teaNote) foodWrap.appendChild(el('div', 'note', food.teaNote));
     } else if (Array.isArray(food)) {
       food.forEach(function (f) {
-        var card = el('div', 'mini-card');
+        var item = el('div', 'g-item');
         if (typeof f === 'string') {
-          card.appendChild(el('p', null, f));
+          item.appendChild(el('p', null, f));
         } else {
-          card.appendChild(el('h4', null, f.name || f.title || ''));
-          if (f.desc) card.appendChild(el('p', null, f.desc));
+          item.appendChild(el('h4', null, f.name || f.title || ''));
+          if (f.desc) item.appendChild(el('p', null, f.desc));
         }
-        foodWrap.appendChild(card);
+        foodWrap.appendChild(item);
       });
     }
 
@@ -658,18 +725,18 @@
     var arWrap = document.getElementById('around-list');
     arWrap.textContent = '';
     ((data && data.surroundings) || []).forEach(function (s) {
-      var card = el('div', 'mini-card');
+      var item = el('div', 'g-item');
       if (typeof s === 'string') {
-        card.appendChild(el('p', null, s));
+        item.appendChild(el('p', null, s));
       } else {
-        var head = el('div', 'mini-card-head');
+        var head = el('div', 'g-item-head');
         head.appendChild(el('h4', null, s.name || ''));
-        if (s.distance) head.appendChild(el('span', 'chip', s.distance));
-        card.appendChild(head);
-        if (s.desc) card.appendChild(el('p', null, s.desc));
-        if (s.tip) card.appendChild(el('div', 'note', s.tip));
+        if (s.distance) head.appendChild(el('span', 'dist', s.distance));
+        item.appendChild(head);
+        if (s.desc) item.appendChild(el('p', null, s.desc));
+        if (s.tip) item.appendChild(el('div', 'note', s.tip));
       }
-      arWrap.appendChild(card);
+      arWrap.appendChild(item);
     });
 
     // первый аккордеон открыт по умолчанию
@@ -683,10 +750,12 @@
   function updatePackProgress(total, state) {
     var done = 0;
     for (var i = 0; i < total; i++) if (state[i]) done++;
-    var pct = total ? Math.round(done / total * 100) : 0;
-    document.getElementById('pack-progress').style.width = pct + '%';
-    document.getElementById('pack-progress-label').textContent =
-      total ? ('собрано ' + pct + '%') : '';
+    var label = document.getElementById('pack-progress-label');
+    label.textContent = '';
+    if (!total) return;
+    var num = el('span', 'num', String(done));
+    label.appendChild(num);
+    label.appendChild(document.createTextNode('из ' + total));
   }
 
   /* ============================================================
@@ -707,12 +776,21 @@
 
     if (!isNaN(revealAt) && now < revealAt) {
       var days = Math.ceil((revealAt - now) / 86400000);
-      locBody.appendChild(el('p', null, '🔒 точное место откроем за несколько дней до феста — пока это секрет ✨'));
-      var cd = el('span', 'countdown', days + ' ' + plural(days, 'день', 'дня', 'дней'));
+      var lock = el('div', 'lock-block');
+      lock.appendChild(icon('ph-lock-key'));
+      lock.appendChild(el('p', null,
+        'Точное место откроем за несколько дней до феста. Пока это секрет и часть магии.'));
+      locBody.appendChild(lock);
+      var cd = el('div', 'countdown');
+      cd.appendChild(el('span', 'num', String(days)));
+      cd.appendChild(el('span', 'lbl',
+        plural(days, 'день', 'дня', 'дней') + ' до раскрытия'));
       locBody.appendChild(cd);
-      locBody.appendChild(el('p', null, 'осталось до раскрытия локации'));
     } else {
-      locBody.appendChild(el('p', null, '📍 точку пришлют в чат участников'));
+      var pin = el('div', 'lock-block');
+      pin.appendChild(icon('ph-map-pin'));
+      pin.appendChild(el('p', null, 'Точку пришлют в чат участников.'));
+      locBody.appendChild(pin);
     }
 
     // Как добраться
@@ -728,10 +806,10 @@
     var rulesBody = document.getElementById('rules-body');
     rulesBody.textContent = '';
     var rules = (data && data.rules) || {};
-    if (rules.intro) rulesBody.appendChild(el('p', 'food-intro', rules.intro));
+    if (rules.intro) rulesBody.appendChild(el('p', 'g-intro', rules.intro));
     var ul = el('ul', 'rules-list');
     (rules.items || []).forEach(function (t) {
-      ul.appendChild(el('li', null, '🤍 ' + t));
+      ul.appendChild(el('li', null, t));
     });
     rulesBody.appendChild(ul);
     if (rules.quietHours) rulesBody.appendChild(el('div', 'note', rules.quietHours));
@@ -741,13 +819,13 @@
     sosBody.textContent = '';
     if (Array.isArray(rules.sos)) {
       rules.sos.forEach(function (s) {
-        var card = el('div', 'mini-card');
-        card.appendChild(el('h4', null, s.title || ''));
-        if (s.desc) card.appendChild(el('p', null, s.desc));
-        sosBody.appendChild(card);
+        var item = el('div', 'g-item');
+        item.appendChild(el('h4', null, s.title || ''));
+        if (s.desc) item.appendChild(el('p', null, s.desc));
+        sosBody.appendChild(item);
       });
     } else {
-      sosBody.appendChild(el('p', null, rules.sos || 'ищите организаторов — мы рядом 🤍'));
+      sosBody.appendChild(el('p', null, rules.sos || 'Ищите организаторов, мы рядом.'));
     }
   }
 
@@ -776,23 +854,30 @@
     '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
     '&timezone=Europe%2FMoscow';
 
-  function weatherIcon(code) {
-    if (code === 0) return '☀️';
-    if (code === 1 || code === 2) return '🌤';
-    if (code === 3) return '☁️';
-    if (code === 45 || code === 48) return '🌫';
-    if (code >= 51 && code <= 57) return '🌦';
-    if (code >= 61 && code <= 67) return '🌧';
-    if (code >= 71 && code <= 77) return '🌨';
-    if (code >= 80 && code <= 82) return '🌧';
-    if (code >= 95) return '⛈';
-    return '🌡';
+  function weatherIconCls(code) {
+    if (code === 0) return 'ph-sun';
+    if (code === 1 || code === 2) return 'ph-cloud-sun';
+    if (code === 3) return 'ph-cloud';
+    if (code === 45 || code === 48) return 'ph-cloud-fog';
+    if (code >= 51 && code <= 57) return 'ph-cloud-rain';
+    if (code >= 61 && code <= 67) return 'ph-cloud-rain';
+    if (code >= 71 && code <= 77) return 'ph-snowflake';
+    if (code >= 80 && code <= 82) return 'ph-cloud-rain';
+    if (code >= 95) return 'ph-cloud-lightning';
+    return 'ph-thermometer-simple';
   }
 
   function weatherTip(min) {
-    if (min < 10) return 'ночью прохладно — тёплые носочки пригодятся 🧦';
-    if (min < 15) return 'ночью свежо — флиска вечером не помешает';
-    return 'ночи обещают тёплые — но плед у костра всегда хорошая идея';
+    if (min < 10) return 'Ночью прохладно, тёплые носки пригодятся.';
+    if (min < 15) return 'Ночью свежо, флиска вечером не помешает.';
+    return 'Ночи обещают тёплые, но плед у костра всегда хорошая идея.';
+  }
+
+  function weatherLine(iconCls, text) {
+    var p = el('p', 'weather-line');
+    p.appendChild(icon(iconCls));
+    p.appendChild(document.createTextNode(text));
+    return p;
   }
 
   function renderWeather(w) {
@@ -812,13 +897,15 @@
     var prob = (probs && typeof probs[0] === 'number') ? probs[0] : null;
 
     body.textContent = '';
-    body.appendChild(el('p', null,
-      weatherIcon(cur.weather_code) + ' сейчас ' + Math.round(t) + '° · ощущается как ' + Math.round(feels) + '°'));
+    body.appendChild(weatherLine(weatherIconCls(cur.weather_code),
+      'Сейчас ' + Math.round(t) + '°, ощущается как ' + Math.round(feels) + '°'));
     if (min !== null && max !== null) {
-      body.appendChild(el('p', null, 'сегодня: днём до ' + max + '°, ночью около ' + min + '°'));
+      body.appendChild(weatherLine('ph-thermometer-simple',
+        'Сегодня: днём до ' + max + '°, ночью около ' + min + '°'));
     }
     if (prob !== null) {
-      body.appendChild(el('p', null, 'вероятность осадков — ' + prob + '%'));
+      body.appendChild(weatherLine('ph-cloud-rain',
+        'Вероятность осадков ' + prob + '%'));
     }
     if (min !== null) {
       body.appendChild(el('div', 'note', weatherTip(min)));
@@ -843,7 +930,7 @@
         renderWeather(json);
       })
       .catch(function () {
-        // офлайн: показываем старый кэш, если есть; иначе молча прячем карточку
+        // офлайн: показываем старый кэш, если есть; иначе молча прячем секцию
         if (cached && cached.data) renderWeather(cached.data);
         else card.hidden = true;
       });
